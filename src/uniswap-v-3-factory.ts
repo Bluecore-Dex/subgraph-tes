@@ -1,58 +1,53 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+//import event class from generated files
 import {
-  UniswapV3Factory,
-  FeeAmountEnabled,
-  OwnerChanged,
-  PoolCreated
+  PoolCreated as PoolCreatedEvent
 } from "../generated/UniswapV3Factory/UniswapV3Factory"
-import { ExampleEntity } from "../generated/schema"
+//import entity classes from generated files
+import {
+  Pool,Token
+} from "../generated/schema"
+//import functions from tokenUtils
+import {
+  getTokenName,getTokenSymbol
+} from "./tokenUtils"
+//import type
+import { BigInt } from '@graphprotocol/graph-ts'
 
-export function handleFeeAmountEnabled(event: FeeAmountEnabled): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from)
-
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from)
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+//function for handling PoolCreatedEvent
+export function handlePoolCreated(event: PoolCreatedEvent): void {
+  // loading the entities
+  // Here, the id of the token is essentially its address
+  // converted to string. While loading, we use the id to see
+  // if an entity with that id exists
+  let token0 = Token.load(event.params.token0.toHexString())
+  let token1 = Token.load(event.params.token1.toHexString())
+    // check if entity is empty null
+  if (token0 === null) { //if empty
+		// create new entity
+		// while creating new Token entity, the address of the token is 
+    // converted to string and it is passed as the id
+    token0 = new Token(event.params.token0.toHexString()) 
+    token0.name = getTokenName(event.params.token0) //get name
+    token0.symbol = getTokenSymbol(event.params.token0) //get symbol
   }
+  if (token1 === null) {
+    token1 = new Token(event.params.token1.toHexString())
+    token1.name = getTokenName(event.params.token1)
+    token1.symbol = getTokenSymbol(event.params.token1)
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
-
-  // Entity fields can be set based on event parameters
-  entity.fee = event.params.fee
-  entity.tickSpacing = event.params.tickSpacing
-
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.createPool(...)
-  // - contract.feeAmountTickSpacing(...)
-  // - contract.getPool(...)
-  // - contract.owner(...)
-  // - contract.parameters(...)
+  }
+	//create new entity
+	// here, the address of the pool is converted to string
+  // and passed as the id
+  let pool = new Pool(event.params.pool.toHexString()) as Pool
+  pool.token0 = token0.id //set token id
+  pool.token1 = token1.id
+  pool.timestamp = event.block.timestamp //set timestamp
+  pool.blockNumber = event.block.number //set block number
+  pool.feeAmount = BigInt.fromI32(event.params.fee) //set fee
+	
+	//save entities
+  token0.save()
+  token1.save()
+  pool.save()
 }
-
-export function handleOwnerChanged(event: OwnerChanged): void {}
-
-export function handlePoolCreated(event: PoolCreated): void {}
